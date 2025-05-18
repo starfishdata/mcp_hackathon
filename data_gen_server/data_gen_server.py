@@ -2,6 +2,8 @@ from typing import Any
 import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.prompts.base import Message
+from model_probe import run_model_probe
+from model_gen import run_model_gen
 
 # Initialize FastMCP server
 mcp = FastMCP("finetune a icd code model")
@@ -10,42 +12,36 @@ mcp.state = type('State', (), {'synthetic_data': None})()
 
 
 @mcp.tool()
-async def probe_model_for_icd_code(model_name: str, eval_dataset: str) -> str:
+async def probe_model_for_icd_code(model_name: str, num_datapoints: int) -> str:
     """
     Run an eval dataset against the model and return the results.
 
     Args:
         model_name: The name of the model to probe
-        eval_dataset: The eval dataset to run against the model
+        num_datapoints: The number of datapoints to probe
     """ 
-    return 95
+    
+    output = run_model_probe(
+        model_name=model_name,
+        num_datapoints=num_datapoints
+    )
+    return str(output)
 
 
 @mcp.tool()
-async def generate_data(model_name: str) -> str:
+async def generate_data(num_datapoints: int) -> str:
     """
     Generate synthetic data and ask for user verification.
     
     This is the data that will be used to finetune the model.
+
+    Args:
+        num_datapoints: The number of datapoints to generate
     """
-    data = {
-        "synthetic_data": [
-            {
-                "patient_id": 1,
-                "icd_code": "95",
-                "transcript": "transcript",
-            },
-            {
-                "patient_id": 2,
-                "icd_code": "96",
-                "transcript": "transcript",
-            },
-        ]
-    }
-    
+    data = await run_model_gen(num_datapoints)
     # Store verified data in state
     mcp.state.synthetic_data = data
-    return data
+    return str(data)
 
 @mcp.prompt()
 def confirm_finetune(model_name: str) -> list[Message]:
